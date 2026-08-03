@@ -19,7 +19,7 @@ services:
     container_name: es-master-1
     environment:
       - node.name=es-master-1
-      - cluster.name=elk-demo
+      - cluster.name=elk-stage
       - node.roles=master
       - network.host=0.0.0.0
       - discovery.seed_hosts=es-master-2,es-master-3
@@ -28,9 +28,14 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
-      - es-master-1:/usr/share/elasticsearch/data
+      - /mnt/es-master-1/data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == servername"
 
   es-master-2:
     <<: *es-base
@@ -46,7 +51,12 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
-      - es-master-2:/usr/share/elasticsearch/data
+      - /mnt/es-master-2/data:/usr/share/elasticsearch/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == servername"
 
   es-master-3:
     <<: *es-base
@@ -62,7 +72,12 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
-      - es-master-3:/usr/share/elasticsearch/data
+      - /mnt/es-master-3/data:/usr/share/elasticsearch/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == servername"
 
   # -------------------------------------------------------
   # Data-узлы: хранят данные и могут выполнять ingest
@@ -80,7 +95,12 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
     volumes:
-      - es-data-1:/usr/share/elasticsearch/data
+      - /mnt/es-data-1/data:/usr/share/elasticsearch/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == servername"
     depends_on:
       es-master-1:
         condition: service_healthy
@@ -102,7 +122,12 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
     volumes:
-      - es-data-2:/usr/share/elasticsearch/data
+      - /mnt/es-data-2/data:/usr/share/elasticsearch/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == servername"
     depends_on:
       es-master-1:
         condition: service_healthy
@@ -124,7 +149,12 @@ services:
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
     volumes:
-      - es-data-3:/usr/share/elasticsearch/data
+      - /mnt/es-data-3/data:/usr/share/elasticsearch/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == servername"
     depends_on:
       es-master-1:
         condition: service_healthy
@@ -141,7 +171,7 @@ services:
     container_name: logstash
     restart: unless-stopped
     networks:
-      - elk
+      - docker_swarm_elk
     environment:
       - LS_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
@@ -150,6 +180,11 @@ services:
       - "5044:5044"   # Beats input
       - "5000:5000"   # TCP JSON input для теста
       - "9600:9600"   # Logstash monitoring API
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == servername"
     depends_on:
       es-data-1:
         condition: service_healthy
@@ -166,13 +201,18 @@ services:
     container_name: kibana
     restart: unless-stopped
     networks:
-      - elk
+      - docker_swarm_elk
     environment:
       SERVER_HOST: "0.0.0.0"
       ELASTICSEARCH_HOSTS: '["http://es-master-1:9200","http://es-master-2:9200","http://es-master-3:9200"]'
       XPACK_SECURITY_ENABLED: "false"
     ports:
       - "5601:5601"
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == servername"
     depends_on:
       es-master-1:
         condition: service_healthy
@@ -181,14 +221,6 @@ services:
       es-master-3:
         condition: service_healthy
 
-volumes:
-  es-master-1:
-  es-master-2:
-  es-master-3:
-  es-data-1:
-  es-data-2:
-  es-data-3:
-
 networks:
-  elk:
-    driver: bridge
+  docker_swarm_elk:
+    external: true
