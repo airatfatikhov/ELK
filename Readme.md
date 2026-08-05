@@ -21,3 +21,19 @@ PUT _index_template/all_indices_template
   }
 }
 ````
+
+# Для всех индексов сразу (кроме системных)
+````
+PUT */_settings
+{
+  "index.number_of_replicas": 1
+}
+````
+
+# Более безопасный — только ваши индексы
+````
+PUT logs-*,metrics-*,my-app-*/_settings
+{
+  "index.number_of_replicas": 1
+}
+````
