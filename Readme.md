@@ -37,3 +37,54 @@ PUT logs-*,metrics-*,my-app-*/_settings
   "index.number_of_replicas": 1
 }
 ````
+
+# Для автоматического удаления индексов используется Index Lifecycle Management (ILM). Сам по себе index template не удаляет индексы — он привязывает политику жизненного цикла к новым индексам.
+
+* Создайте ILM-политику
+
+````
+PUT _ilm/policy/delete_after_7_days
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "min_age": "0ms",
+        "actions": {}
+      },
+      "delete": {
+        "min_age": "7d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}
+````
+
+* Создайте Index Template с привязкой к ILM
+
+````
+PUT _index_template/logs_template
+{
+  "index_patterns": ["logs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "delete_after_7_days"
+    }
+  },
+  "priority": 200
+}
+````
+
+* Проверка шаблона
+
+````
+# Посмотреть шаблон
+GET _index_template/logs_template
+
+# Симулировать создание индекса
+POST _index_template/_simulate_index/logs-test-001
+````
