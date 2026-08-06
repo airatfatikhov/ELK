@@ -175,7 +175,10 @@ services:
     environment:
       - LS_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
-      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      # Монтируем пайплайн
+      - ./logstash/pipeline/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      # Монтируем CA-сертификат для проверки SSL
+      - ./logstash/certs/ca.crt:/usr/share/logstash/certs/ca.crt:ro
     ports:
       - "5044:5044"   # Beats input
       - "5000:5000"   # TCP JSON input для теста
