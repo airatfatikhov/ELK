@@ -40,19 +40,15 @@ PUT logs-*,metrics-*,my-app-*/_settings
 
 # Для автоматического удаления индексов используется Index Lifecycle Management (ILM). Сам по себе index template не удаляет индексы — он привязывает политику жизненного цикла к новым индексам.
 
-* Создайте ILM-политику
+* Создайте ILM-политику с мин.настройками
 
 ````
-PUT _ilm/policy/delete_after_7_days
+PUT _ilm/policy/jaeger-span-delete-2-days
 {
   "policy": {
     "phases": {
-      "hot": {
-        "min_age": "0ms",
-        "actions": {}
-      },
       "delete": {
-        "min_age": "7d",
+        "min_age": "2d",
         "actions": {
           "delete": {}
         }
@@ -62,20 +58,19 @@ PUT _ilm/policy/delete_after_7_days
 }
 ````
 
+
 * Создайте Index Template с привязкой к ILM
 
 ````
-PUT _index_template/logs_template
+PUT _template/jaeger-span-template
 {
-  "index_patterns": ["logs-*"],
-  "template": {
-    "settings": {
-      "number_of_shards": 3,
-      "number_of_replicas": 1,
-      "index.lifecycle.name": "delete_after_7_days"
-    }
-  },
-  "priority": 200
+  "index_patterns": ["jaeger-span-*"],
+  "order": 1,
+  "settings": {
+    "number_of_shards": 5,
+    "number_of_replicas": 1,
+    "index.lifecycle.name": "jaeger-span-delete-2-days"
+  }
 }
 ````
 
