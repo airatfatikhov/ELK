@@ -1,0 +1,326 @@
+x-es-base: &es-base
+ image: repo.vsk.ru:5001/elasticsearch:7.17.6
+ user: "1000:1000"
+
+services:
+ # -------------------------------------------------------
+ # Master-узлы: только master role, не хранят данные
+ # -------------------------------------------------------
+  es-master-1:
+    <<: *es-base
+    hostname: '{{.Node.Hostname}}'
+    environment:
+      - node.name=elk_es-master-1
+      - cluster.name=elk-stage
+      - node.roles=master,remote_cluster_client
+      - network.host=0.0.0.0
+      - discovery.seed_hosts=elk_es-master-2,elk_es-master-3
+      - cluster.initial_master_nodes=elk_es-master-1,elk_es-master-2,elk_es-master-3
+      - xpack.security.enabled=false
+      - xpack.monitoring.collection.enabled=true
+      - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+      - TZ=Europe/Moscow
+    volumes:
+      - /mnt/es-master-1/data:/usr/share/elasticsearch/data
+      - /etc/localtime:/etc/localtime
+    networks:
+      - docker_swarm_elk
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == o-fmon-mnl-s1.vsk.ru"
+    restart_policy:
+      condition: on-failure
+      delay: 10s
+      max_attempts: 3
+      window: 120s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.master-1.rule=Host(`master-1.elk-stage.vsk.ru`)"
+      - "traefik.http.routers.master-1.entrypoints=websecure"
+      - "traefik.http.routers.master-1.tls=true"
+      - "traefik.http.services.master-1.loadbalancer.server.port=9200"
+ #Settings Timeout
+  # - "traefik.http.serversTransport.master-1.forwardingTimeouts.dialTimeout=30s"
+  # - "traefik.http.serversTransport.master-1.forwardingTimeouts.responseHeaderTimeout=0s"
+  # - "traefik.http.serversTransport.master-1.forwardingTimeouts.idleConnTimeout=90s"
+
+ es-master-2:
+ <<: *es-base
+ hostname: '{{.Node.Hostname}}'
+ environment:
+   - node.name=elk_es-master-2
+   - cluster.name=elk-stage
+   - node.roles=master,remote_cluster_client
+   - network.host=0.0.0.0
+   - discovery.seed_hosts=elk_es-master-1,elk_es-master-3
+   - cluster.initial_master_nodes=elk_es-master-1,elk_es-master-2,elk_es-master-3
+   - xpack.security.enabled=false
+   - xpack.monitoring.collection.enabled=true
+   - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+   - TZ=Europe/Moscow
+ volumes:
+   - /mnt/es-master-2/data:/usr/share/elasticsearch/data
+   - /etc/localtime:/etc/localtime
+ networks:
+   - docker_swarm_elk
+ deploy:
+   replicas: 1
+   placement:
+     constraints:
+       - "node.hostname == o-fmon-mnl-s2.vsk.ru"
+   restart_policy:
+     condition: on-failure
+     delay: 10s
+     max_attempts: 3
+     window: 120s
+ labels:
+   - "traefik.enable=true"
+   - "traefik.http.routers.master-2.rule=Host(`master-2.elk-stage.vsk.ru`)"
+   - "traefik.http.routers.master-2.entrypoints=websecure"
+   - "traefik.http.routers.master-2.tls=true"
+   - "traefik.http.services.master-2.loadbalancer.server.port=9200"
+ #Settings Timeout
+# - "traefik.http.serversTransport.master-2.forwardingTimeouts.dialTimeout=30s"
+# - "traefik.http.serversTransport.master-2.forwardingTimeouts.responseHeaderTimeout=0s"
+# - "traefik.http.serversTransport.master-2.forwardingTimeouts.idleConnTimeout=90s"
+
+ es-master-3:
+ <<: *es-base
+ hostname: '{{.Node.Hostname}}'
+ environment:
+   - node.name=elk_es-master-3
+   - cluster.name=elk-stage
+   - node.roles=master,remote_cluster_client
+   - network.host=0.0.0.0
+   - discovery.seed_hosts=elk_es-master-1,elk_es-master-2
+   - cluster.initial_master_nodes=elk_es-master-1,elk_es-master-2,elk_es-master-3
+   - xpack.security.enabled=false
+   - xpack.monitoring.collection.enabled=true
+   - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+   - TZ=Europe/Moscow
+ volumes:
+   - /mnt/es-master-3/data:/usr/share/elasticsearch/data
+   - /etc/localtime:/etc/localtime
+ networks:
+   - docker_swarm_elk
+ deploy:
+   replicas: 1
+   placement:
+     constraints:
+       - "node.hostname == o-fmon-mnl-s3.vsk.ru"
+   restart_policy:
+     condition: on-failure
+     delay: 10s
+     max_attempts: 3
+     window: 120s
+ labels:
+   - "traefik.enable=true"
+   - "traefik.http.routers.master-3.rule=Host(`master-3.elk-stage.vsk.ru`)"
+   - "traefik.http.routers.master-3.entrypoints=websecure"
+   - "traefik.http.routers.master-3.tls=true"
+   - "traefik.http.services.master-3.loadbalancer.server.port=9200"
+ #Settings Timeout
+# - "traefik.http.serversTransport.master-3.forwardingTimeouts.dialTimeout=30s"
+# - "traefik.http.serversTransport.master-3.forwardingTimeouts.responseHeaderTimeout=0s"
+# - "traefik.http.serversTransport.master-3.forwardingTimeouts.idleConnTimeout=90s"
+
+ # -------------------------------------------------------
+ # Data-узлы: хранят данные и могут выполнять ingest
+ # -------------------------------------------------------
+ es-data-1:
+ <<: *es-base
+ hostname: '{{.Node.Hostname}}'
+ environment:
+   - node.name=elk_es-data-1
+   - cluster.name=elk-stage
+   - node.roles=data,ingest,remote_cluster_client
+   - network.host=0.0.0.0
+   - discovery.seed_hosts=elk_es-master-1,elk_es-master-2,elk_es-master-3
+   - xpack.security.enabled=false
+   - xpack.monitoring.collection.enabled=true
+   - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+   - TZ=Europe/Moscow
+ volumes:
+   - /mnt/es-data-1/data:/usr/share/elasticsearch/data
+   - /etc/localtime:/etc/localtime
+ networks:
+ - docker_swarm_elk
+ deploy:
+ replicas: 1
+ placement:
+ constraints:
+ - "node.hostname == o-fmon-dnl-s1.vsk.ru"
+ restart_policy:
+ condition: on-failure
+ delay: 10s
+ max_attempts: 3
+ window: 120s
+ labels:
+ - "traefik.enable=true"
+ - "traefik.http.routers.data-1.rule=Host(`data-1.elk-stage.vsk.ru`)"
+ - "traefik.http.routers.data-1.entrypoints=websecure"
+ - "traefik.http.routers.data-1.tls=true"
+ - "traefik.http.services.data-1.loadbalancer.server.port=9200"
+ #Settings Timeout
+# - "traefik.http.serversTransport.data-1.forwardingTimeouts.dialTimeout=30s"
+# - "traefik.http.serversTransport.data-1.forwardingTimeouts.responseHeaderTimeout=0s"
+# - "traefik.http.serversTransport.data-1.forwardingTimeouts.idleConnTimeout=90s"
+
+ es-data-2:
+ <<: *es-base
+ hostname: '{{.Node.Hostname}}'
+ environment:
+ - node.name=elk_es-data-2
+ - cluster.name=elk-stage
+ - node.roles=data,ingest,remote_cluster_client
+ - network.host=0.0.0.0
+ - discovery.seed_hosts=elk_es-master-1,elk_es-master-2,elk_es-master-3
+ - xpack.security.enabled=false
+ - xpack.monitoring.collection.enabled=true
+ - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+ - TZ=Europe/Moscow
+ volumes:
+ - /mnt/es-data-2/data:/usr/share/elasticsearch/data
+ - /etc/localtime:/etc/localtime
+ networks:
+ - docker_swarm_elk
+ deploy:
+ replicas: 1
+ placement:
+ constraints:
+ - "node.hostname == o-fmon-dnl-s2.vsk.ru"
+ restart_policy:
+ condition: on-failure
+ delay: 10s
+ max_attempts: 3
+ window: 120s
+ labels:
+ - "traefik.enable=true"
+ - "traefik.http.routers.data-2.rule=Host(`data-2.elk-stage.vsk.ru`)"
+ - "traefik.http.routers.data-2.entrypoints=websecure"
+ - "traefik.http.routers.data-2.tls=true"
+ - "traefik.http.services.data-2.loadbalancer.server.port=9200"
+ #Settings Timeout
+# - "traefik.http.serversTransport.data-2.forwardingTimeouts.dialTimeout=30s"
+# - "traefik.http.serversTransport.data-2.forwardingTimeouts.responseHeaderTimeout=0s"
+# - "traefik.http.serversTransport.data-2.forwardingTimeouts.idleConnTimeout=90s"
+
+ es-data-3:
+ <<: *es-base
+ hostname: '{{.Node.Hostname}}'
+ environment:
+ - node.name=elk_es-data-3
+ - cluster.name=elk-stage
+ - node.roles=data,ingest,remote_cluster_client
+ - network.host=0.0.0.0
+ - discovery.seed_hosts=elk_es-master-1,elk_es-master-2,elk_es-master-3
+ - xpack.security.enabled=false
+ - xpack.monitoring.collection.enabled=true
+ - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+ - TZ=Europe/Moscow
+ volumes:
+ - /mnt/es-data-3/data:/usr/share/elasticsearch/data
+ - /etc/localtime:/etc/localtime
+ networks:
+ - docker_swarm_elk
+ deploy:
+ replicas: 1
+ placement:
+ constraints:
+ - "node.hostname == o-fmon-dnl-s3.vsk.ru"
+ restart_policy:
+ condition: on-failure
+ delay: 10s
+ max_attempts: 3
+ window: 120s
+ labels:
+ - "traefik.enable=true"
+ - "traefik.http.routers.data-3.rule=Host(`data-3.elk-stage.vsk.ru`)"
+ - "traefik.http.routers.data-3.entrypoints=websecure"
+ - "traefik.http.routers.data-3.tls=true"
+ -
+11:09
+"traefik.http.services.data-3.loadbalancer.server.port=9200"
+ #Settings Timeout
+# - "traefik.http.serversTransport.data-3.forwardingTimeouts.dialTimeout=30s"
+# - "traefik.http.serversTransport.data-3.forwardingTimeouts.responseHeaderTimeout=0s"
+# - "traefik.http.serversTransport.data-3.forwardingTimeouts.idleConnTimeout=90s"
+
+ # -------------------------------------------------------
+ # Logstash
+ # -------------------------------------------------------
+logstash:
+ image: repo.vsk.ru:5001/logstash:7.17.6
+ hostname: '{{.Node.Hostname}}'
+ user: "1000:1000"
+ networks:
+ - docker_swarm_elk
+ environment:
+ - "LS_JAVA_OPTS=-Xms2g -Xmx2g"
+ - TZ=Europe/Moscow
+ volumes:
+ - /mnt/logstash/config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+ - /mnt/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+ - /mnt/logstash/config/logstash-sample.conf:/usr/share/logstash/config/logstash-sample.conf:ro
+ - /mnt/logstash/certs/elk-stage.crt:/usr/share/logstash/certs/elk-stage.crt:ro
+ - /mnt/logstash/certs/elk-stage.crt:/etc/logstash/certs/elk-stage.crt
+ - /etc/localtime:/etc/localtime
+# ports:
+# - "5044:5044" # Beats input
+# - "5000:5000" # TCP JSON input для теста
+# - "9600:9600" # Logstash monitoring API
+ deploy:
+   replicas: 1
+   placement:
+     constraints:
+       - "node.hostname == o-fmon-lgstchl-s1.vsk.ru"
+ restart_policy:
+   condition: on-failure
+   delay: 10s
+   max_attempts: 3
+   window: 120s
+ labels:
+   - "traefik.enable=true"
+   - "traefik.http.routers.logstash-beats.rule=Host(`logstash-beats.elk-stage.vsk.ru`)"
+   - "traefik.http.routers.logstash-beats.entrypoints=websecure"
+   - "traefik.http.routers.logstash-beats.tls=true"
+   - "traefik.http.services.logstash-beats.loadbalancer.server.port=5044"
+
+ # -------------------------------------------------------
+ # Kibana
+ # -------------------------------------------------------
+ kibana:
+ image: repo.vsk.ru:5001/kibana:7.17.6
+ hostname: '{{.Node.Hostname}}'
+ networks:
+   - docker_swarm_elk
+ environment:
+   SERVER_HOST: "0.0.0.0"
+   XPACK_SECURITY_ENABLED: "false"
+   TZ: "Europe/Moscow"
+ volumes:
+   - /mnt/kibana/certs/elk-stage.crt:/usr/share/kibana/config/certs/elk-stage.crt
+   - /mnt/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml
+   - /etc/localtime:/etc/localtime
+ deploy:
+   replicas: 1
+   placement:
+     constraints:
+       - "node.hostname == o-fmon-kbnl-s1.vsk.ru"
+ restart_policy:
+   condition: on-failure
+   delay: 10s
+   max_attempts: 3
+   window: 120s
+ labels:
+   - "traefik.enable=true"
+   - "traefik.http.routers.kibana.rule=Host(`kibana.elk-stage.test`)"
+   - "traefik.http.routers.kibana.entrypoints=websecure"
+   - "traefik.http.routers.kibana.tls=true"
+   - "traefik.http.services.kibana.loadbalancer.server.port=5601"
+
+networks:
+ docker_swarm_elk:
+ external: true
